@@ -1,0 +1,28 @@
+{
+  "name": "employee-tracker",
+  "version": "1.0.0",
+  "description": "Command-line application to manage a company's employee database",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/renkayla/employee-tracker.git"
+  },
+  "keywords": [
+    "Command-line",
+    "application"
+  ],
+  "author": "Kayla Nichols",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/renkayla/employee-tracker/issues"
+  },
+  "homepage": "https://github.com/renkayla/employee-tracker#readme",
+  "dependencies": {
+    "console.table": "^0.10.0",
+    "inquirer": "^9.2.7",
+    "mysql2": "^3.4.3"
+  }
+}
