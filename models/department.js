@@ -1,9 +1,9 @@
 const connection = require('../connection');
 
 // Function to create a department
-function createDepartment(name) {
+function createDepartment(departmentName) {
   const query = 'INSERT INTO department (name) VALUES (?)';
-  return connection.promise().query(query, [name]);
+  return connection.promise().query(query, [departmentName]);
 }
 
 // Function to read departments
