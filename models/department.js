@@ -1,4 +1,5 @@
 const connection = require('../connection');
+require('dotenv').config();
 
 // Function to create a department
 function createDepartment(departmentName) {

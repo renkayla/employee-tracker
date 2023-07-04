@@ -22,7 +22,8 @@
   "homepage": "https://github.com/renkayla/employee-tracker#readme",
   "dependencies": {
     "console.table": "^0.10.0",
-    "inquirer": "^9.2.7",
+    "dotenv": "^16.3.1",
+    "inquirer": "^7.3.3",
     "mysql2": "^3.4.3"
   }
 }
