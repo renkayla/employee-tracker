@@ -34,10 +34,17 @@ function start() {
         'View departments',
         'View roles',
         'View employees',
+        'View employees by manager',
+        'View employees by department',
+        'View total utilized budget of a department',
         'Add department',
         'Add role',
         'Add employee',
         'Update employee role',
+        'Update employee manager',
+        'Delete department',
+        'Delete role',
+        'Delete employee',
         'Exit'
       ]
     })
@@ -52,6 +59,15 @@ function start() {
         case 'View employees':
           viewEmployees();
           break;
+        case 'View employees by manager':
+          viewEmployeesByManager();
+          break;
+        case 'View employees by department':
+          viewEmployeesByDepartment();
+          break;
+        case 'View total utilized budget of a department':
+          viewDepartmentBudget();
+          break;
         case 'Add department':
           addDepartment();
           break;
@@ -64,6 +80,21 @@ function start() {
         case 'Update employee role':
           updateEmployeeRole();
           break;
+        case 'Update employee manager':
+          updateEmployeeManager();
+          break;
+        case 'Delete department':
+          deleteDepartment();
+          break;
+        case 'Delete role':
+          deleteRole();
+          break;
+        case 'View employees by manager name': 
+          viewEmployeesByManagerName();
+          break;
+        case 'Delete employee':
+          deleteEmployee();
+          break;
         case 'Exit':
           connection.end();
           console.log('Goodbye!');
@@ -71,6 +102,309 @@ function start() {
       }
     });
 }
+
+// Function to view employees by manager name
+/*function viewEmployeesByManagerName() {
+  connection.query('SELECT DISTINCT manager_id, CONCAT(manager.first_name, " ", manager.last_name) AS manager_name FROM employee JOIN employee AS manager ON employee.manager_id = manager.id', (err, managers) => {
+    if (err) {
+      console.error('Error fetching managers: ' + err.stack);
+      return;
+    }
+
+    inquirer
+      .prompt({
+        type: 'list',
+        name: 'managerId',
+        message: 'Select the manager to view employees:',
+        choices: managers.map((manager) => ({
+          name: manager.manager_name,
+          value: manager.manager_id,
+        })),
+      })
+      .then((answer) => {
+        const managerId = answer.managerId;
+        connection.query(
+          'SELECT employee.id, employee.first_name, employee.last_name, role.title, role.salary, department.name AS department_name FROM employee JOIN role ON employee.role_id = role.id JOIN department ON role.department_id = department.id WHERE employee.manager_id = ?',
+          [managerId],
+          (err, employees) => {
+            if (err) {
+              console.error('Error fetching employees by manager: ' + err.stack);
+              return;
+            }
+            console.table(employees);
+            start();
+          }
+        );
+      });
+  });
+}*/
+
+// Function to update an employee's manager
+function updateEmployeeManager() {
+  connection.query('SELECT * FROM employee', (err, employees) => {
+    if (err) {
+      console.error('Error fetching employees: ' + err.stack);
+      return;
+    }
+    inquirer
+      .prompt([
+        {
+          type: 'list',
+          name: 'employeeId',
+          message: 'Select the employee to update:',
+          choices: employees.map((employee) => ({
+            name: `${employee.first_name} ${employee.last_name}`,
+            value: employee.id,
+          })),
+        },
+        {
+          type: 'list',
+          name: 'managerId',
+          message: "Select the employee's new manager:",
+          choices: employees.map((employee) => ({
+            name: `${employee.first_name} ${employee.last_name}`,
+            value: employee.id,
+          })),
+        },
+      ])
+      .then((answer) => {
+        const employeeId = answer.employeeId;
+        const managerId = answer.managerId;
+        connection.query(
+          'UPDATE employee SET manager_id = ? WHERE id = ?',
+          [managerId, employeeId],
+          (err, result) => {
+            if (err) {
+              console.error('Error updating employee manager: ' + err.stack);
+              return;
+            }
+            console.log('Employee manager updated successfully!');
+            start(); // Call the start function again to display the main menu
+          }
+        );
+      });
+  });
+}
+
+
+// Function to view employees by manager
+function viewEmployeesByManager() {
+  inquirer
+    .prompt({
+      type: 'input',
+      name: 'managerId',
+      message: 'Enter the ID of the manager to view employees:'
+    })
+    .then((answer) => {
+      const managerId = answer.managerId;
+      connection.query(
+        'SELECT employee.id, employee.first_name, employee.last_name, role.title, role.salary, department.name AS department_name FROM employee JOIN role ON employee.role_id = role.id JOIN department ON role.department_id = department.id WHERE employee.manager_id = ?',
+        [managerId],
+        (err, employees) => {
+          if (err) {
+            console.error('Error fetching employees by manager: ' + err.stack);
+            return;
+          }
+          console.table(employees);
+          start();
+        }
+      );
+    });
+}
+
+// Function to view employees by department
+function viewEmployeesByDepartment() {
+  connection.query('SELECT * FROM department', (err, departments) => {
+    if (err) {
+      console.error('Error fetching departments: ' + err.stack);
+      return;
+    }
+    inquirer
+      .prompt({
+        type: 'list',
+        name: 'departmentId',
+        message: 'Select the department to view employees:',
+        choices: departments.map((department) => ({
+          name: department.name,
+          value: department.id,
+        })),
+      })
+      .then((answer) => {
+        const departmentId = answer.departmentId;
+        connection.query(
+          'SELECT employee.id, employee.first_name, employee.last_name, role.title, role.salary, department.name AS department_name FROM employee JOIN role ON employee.role_id = role.id JOIN department ON role.department_id = department.id WHERE department.id = ?',
+          [departmentId],
+          (err, employees) => {
+            if (err) {
+              console.error('Error fetching employees by department: ' + err.stack);
+              return;
+            }
+            console.table(employees);
+            start();
+          }
+        );
+      });
+  });
+}
+
+// Function to view the total utilized budget of a department
+function viewDepartmentBudget() {
+  connection.query(
+    'SELECT department.name AS department_name, SUM(role.salary) AS utilized_budget FROM employee JOIN role ON employee.role_id = role.id JOIN department ON role.department_id = department.id GROUP BY department.id',
+    (err, budgets) => {
+      if (err) {
+        console.error('Error fetching department budgets: ' + err.stack);
+        return;
+      }
+      console.table(budgets);
+      start();
+    }
+  );
+}
+
+// Function to delete a department
+function deleteDepartment() {
+  connection.query('SELECT * FROM department', (err, departments) => {
+    if (err) {
+      console.error('Error fetching departments: ' + err.stack);
+      return;
+    }
+    inquirer
+      .prompt({
+        type: 'list',
+        name: 'departmentId',
+        message: 'Select the department to delete:',
+        choices: departments.map((department) => ({
+          name: department.name,
+          value: department.id,
+        })),
+      })
+      .then((answer) => {
+        const departmentId = answer.departmentId;
+        connection.query('DELETE FROM department WHERE id = ?', [departmentId], (err, result) => {
+          if (err) {
+            console.error('Error deleting department: ' + err.stack);
+            return;
+          }
+          console.log('Department deleted successfully!');
+          start();
+        });
+      });
+  });
+}
+
+// Function to delete a role
+function deleteRole() {
+  connection.query('SELECT * FROM role', (err, roles) => {
+    if (err) {
+      console.error('Error fetching roles: ' + err.stack);
+      return;
+    }
+    inquirer
+      .prompt({
+        type: 'list',
+        name: 'roleId',
+        message: 'Select the role to delete:',
+        choices: roles.map((role) => ({
+          name: role.title,
+          value: role.id,
+        })),
+      })
+      .then((answer) => {
+        const roleId = answer.roleId;
+        connection.query('DELETE FROM role WHERE id = ?', [roleId], (err, result) => {
+          if (err) {
+            console.error('Error deleting role: ' + err.stack);
+            return;
+          }
+          console.log('Role deleted successfully!');
+          start();
+        });
+      });
+  });
+}
+
+// Function to delete an employee
+function deleteEmployee() {
+  connection.query(
+    'SELECT employee.id, employee.first_name, employee.last_name FROM employee',
+    (err, employees) => {
+      if (err) {
+        console.error('Error fetching employees: ' + err.stack);
+        return;
+      }
+      inquirer
+        .prompt({
+          type: 'list',
+          name: 'employeeId',
+          message: 'Select the employee to delete:',
+          choices: employees.map((employee) => ({
+            name: `${employee.first_name} ${employee.last_name}`,
+            value: employee.id,
+          })),
+        })
+        .then((answer) => {
+          const employeeId = answer.employeeId;
+          connection.query('DELETE FROM employee WHERE id = ?', [employeeId], (err, result) => {
+            if (err) {
+              console.error('Error deleting employee: ' + err.stack);
+              return;
+            }
+            console.log('Employee deleted successfully!');
+            start();
+          });
+        });
+    }
+  );
+}
+
+// Function to update an employee's manager
+function updateEmployeeManager() {
+  connection.query('SELECT * FROM employee', (err, employees) => {
+    if (err) {
+      console.error('Error fetching employees: ' + err.stack);
+      return;
+    }
+    inquirer
+      .prompt([
+        {
+          type: 'list',
+          name: 'employeeId',
+          message: 'Select the employee to update:',
+          choices: employees.map((employee) => ({
+            name: `${employee.first_name} ${employee.last_name}`,
+            value: employee.id,
+          })),
+        },
+        {
+          type: 'list',
+          name: 'managerId',
+          message: "Select the employee's new manager:",
+          choices: employees.map((employee) => ({
+            name: `${employee.first_name} ${employee.last_name}`,
+            value: employee.id,
+          })),
+        },
+      ])
+      .then((answer) => {
+        const employeeId = answer.employeeId;
+        const managerId = answer.managerId;
+        connection.query(
+          'UPDATE employee SET manager_id = ? WHERE id = ?',
+          [managerId, employeeId],
+          (err, result) => {
+            if (err) {
+              console.error('Error updating employee manager: ' + err.stack);
+              return;
+            }
+            console.log('Employee manager updated successfully!');
+            start();
+          }
+        );
+      });
+  });
+}
+
 
 // Function to view departments
 function viewDepartments() {

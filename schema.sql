@@ -29,6 +29,9 @@ CREATE TABLE employee (
   FOREIGN KEY (manager_id) REFERENCES employee(id)
 );
 
+-- Create a new column in the employee table for the total utilized budget of a department
+ALTER TABLE department ADD COLUMN total_utilized_budget DECIMAL DEFAULT 0;
+
 -- Insert departments
 INSERT INTO department (name)
 VALUES ('Sales'),
@@ -76,38 +79,35 @@ JOIN role ON employee.role_id = role.id
 JOIN department ON role.department_id = department.id
 LEFT JOIN employee AS manager ON employee.manager_id = manager.id;
 
--- Add a department
-INSERT INTO department (name)
-VALUES ('Department Name');
+-- View employees by manager
+SELECT * FROM employee WHERE manager_id = 1;
 
--- Add a role
-INSERT INTO role (title, salary, department_id)
-VALUES ('Sales Manager', 70000, 1);
+-- View employees by department
+SELECT * FROM employee WHERE role_id IN (SELECT id FROM role WHERE department_id = 2);
 
--- Add an employee
-INSERT INTO employee (first_name, last_name, role_id, manager_id)
-VALUES ('Robert', 'Johnson', 1, NULL);
+-- Delete a department
+DELETE FROM department WHERE id = 3;
+
+-- Delete a role
+DELETE FROM role WHERE id = 2;
+
+-- Delete an employee
+DELETE FROM employee WHERE id = 5;
 
 -- Update an employee's role
-UPDATE employee
-SET role_id = 2
-WHERE id = 1;
+UPDATE employee SET role_id = 3 WHERE id = 7;
 
--- Additional roles
-INSERT INTO role (title, salary, department_id)
-VALUES ('Sales Assistant', 40000, 1),
-       ('Marketing Specialist', 55000, 2),
-       ('Finance Manager', 65000, 3);
+-- Update an employee's manager
+UPDATE employee SET manager_id = 2 WHERE id = 10;
 
--- Additional employees
-INSERT INTO employee (first_name, last_name, role_id, manager_id)
-VALUES ('Emily', 'Walker', 3, 2),
-       ('Daniel', 'Clark', 1, 2),
-       ('Olivia', 'Martin', 2, 3),
-       ('Jacob', 'Harris', 3, 3),
-       ('Sophia', 'Lewis', 1, 3),
-       ('Liam', 'Robinson', 2, 4),
-       ('Ava', 'Walker', 3, 4);
+-- View the total utilized budget of a department
+SELECT department.name AS department, SUM(role.salary) AS total_utilized_budget
+FROM department
+JOIN role ON department.id = role.department_id
+JOIN employee ON role.id = employee.role_id
+WHERE department.id = 1
+GROUP BY department.name;
+
 
 -- Modify auto-increment behavior
 ALTER TABLE department MODIFY id INT AUTO_INCREMENT;
