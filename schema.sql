@@ -6,7 +6,8 @@ DROP TABLE IF EXISTS department;
 -- Create department table
 CREATE TABLE department (
   id INT PRIMARY KEY AUTO_INCREMENT,
-  name VARCHAR(30) UNIQUE
+  name VARCHAR(30) UNIQUE,
+  total_utilized_budget DECIMAL DEFAULT 0 -- Add the column here
 );
 
 -- Create role table
@@ -15,8 +16,9 @@ CREATE TABLE role (
   title VARCHAR(30),
   salary DECIMAL,
   department_id INT,
-  FOREIGN KEY (department_id) REFERENCES department(id)
+  CONSTRAINT role_department_fk FOREIGN KEY (department_id) REFERENCES department(id) ON DELETE CASCADE
 );
+
 
 -- Create employee table
 CREATE TABLE employee (
@@ -25,12 +27,11 @@ CREATE TABLE employee (
   last_name VARCHAR(30),
   role_id INT,
   manager_id INT,
-  FOREIGN KEY (role_id) REFERENCES role(id),
-  FOREIGN KEY (manager_id) REFERENCES employee(id)
+  CONSTRAINT employee_role_fk FOREIGN KEY (role_id) REFERENCES role(id) ON DELETE CASCADE,
+  CONSTRAINT employee_manager_fk FOREIGN KEY (manager_id) REFERENCES employee(id) ON DELETE CASCADE
 );
 
--- Create a new column in the employee table for the total utilized budget of a department
-ALTER TABLE department ADD COLUMN total_utilized_budget DECIMAL DEFAULT 0;
+
 
 -- Insert departments
 INSERT INTO department (name)
@@ -62,23 +63,7 @@ VALUES ('Sarah', 'Williams', 1, 1),
        ('Liam', 'Anderson', 2, 4),
        ('Ava', 'Taylor', 3, 4);
 
--- Additional queries for fetching data and modifying records
-
--- Fetch all departments
-SELECT * FROM department;
-
--- Fetch all roles
-SELECT role.id, role.title, role.salary, department.name AS department_name
-FROM role
-JOIN department ON role.department_id = department.id;
-
--- Fetch all employees
-SELECT employee.id, employee.first_name, employee.last_name, role.title AS job_title, department.name AS department, role.salary, CONCAT(manager.first_name, ' ', manager.last_name) AS manager
-FROM employee
-JOIN role ON employee.role_id = role.id
-JOIN department ON role.department_id = department.id
-LEFT JOIN employee AS manager ON employee.manager_id = manager.id;
-
+      
 -- View employees by manager
 SELECT * FROM employee WHERE manager_id = 1;
 
@@ -91,8 +76,13 @@ DELETE FROM department WHERE id = 3;
 -- Delete a role
 DELETE FROM role WHERE id = 2;
 
--- Delete an employee
-DELETE FROM employee WHERE id = 5;
+-- Delete employees
+DELETE FROM employee WHERE id IN (2, 5, 8, 11);
+
+-- Re-establish foreign key constraints
+ALTER TABLE role ADD CONSTRAINT role_ibfk_1 FOREIGN KEY (department_id) REFERENCES department(id);
+ALTER TABLE employee ADD CONSTRAINT employee_ibfk_1 FOREIGN KEY (role_id) REFERENCES role(id);
+
 
 -- Update an employee's role
 UPDATE employee SET role_id = 3 WHERE id = 7;
@@ -107,9 +97,3 @@ JOIN role ON department.id = role.department_id
 JOIN employee ON role.id = employee.role_id
 WHERE department.id = 1
 GROUP BY department.name;
-
-
--- Modify auto-increment behavior
-ALTER TABLE department MODIFY id INT AUTO_INCREMENT;
-ALTER TABLE role MODIFY id INT AUTO_INCREMENT;
-ALTER TABLE employee MODIFY id INT AUTO_INCREMENT;
