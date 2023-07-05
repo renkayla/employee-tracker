@@ -12,6 +12,21 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+// Enable autocommit mode
+pool.getConnection((err, connection) => {
+  if (err) {
+    console.error('Error connecting to the database: ' + err.stack);
+    return;
+  }
+
+  connection.query('SET autocommit = 1', error => {
+    connection.release(); // Release the connection
+    if (error) {
+      console.error('Error enabling autocommit mode: ' + error.stack);
+      pool.end(); // Close the connection pool
+      return;
+    }
+
 // Prompt user to select an action from the main menu
 inquirer
   .prompt([
@@ -98,46 +113,53 @@ inquirer
 
 // Function to view departments
 function viewDepartments() {
-  const selectQuery = 'SELECT * FROM department';
-  pool.query(selectQuery, (error, results) => {
-    if (error) {
-      console.error('Error fetching departments:', error);
-    } else {
-      console.table(results);
+  pool.query('SELECT * FROM department', (err, departments) => {
+    if (err) {
+      console.error('Error fetching departments: ' + err.stack);
+      return;
     }
-    pool.end(); // Close the connection pool
-  });
-}
-
-// Function to view roles
-function viewRoles() {
-  const selectQuery =
-    'SELECT role.id, role.title, role.salary, department.name AS department_name FROM role JOIN department ON role.department_id = department.id';
-  pool.query(selectQuery, (error, results) => {
-    if (error) {
-      console.error('Error fetching roles:', error);
-    } else {
-      console.table(results);
-    }
-    pool.end(); // Close the connection pool
+    console.table(departments);
+    start();
   });
 }
 
 // Function to view employees
 function viewEmployees() {
-  const selectQuery =
-    'SELECT employee.id, employee.first_name, employee.last_name, role.title AS job_title, department.name AS department, role.salary, CONCAT(manager.first_name, " ", manager.last_name) AS manager FROM employee JOIN role ON employee.role_id = role.id JOIN department ON role.department_id = department.id LEFT JOIN employee AS manager ON employee.manager_id = manager.id';
-  pool.query(selectQuery, (error, results) => {
-    if (error) {
-      console.error('Error fetching employees:', error);
-    } else {
-      console.table(results);
+  pool.query(
+    'SELECT employee.id, employee.first_name, employee.last_name, role.title, role.salary, department.name AS department_name ' +
+      'FROM employee ' +
+      'JOIN role ON employee.role_id = role.id ' +
+      'JOIN department ON role.department_id = department.id',
+    (err, employees) => {
+      if (err) {
+        console.error('Error fetching employees: ' + err.stack);
+        return;
+      }
+      console.table(employees);
+      start();
     }
-    pool.end(); // Close the connection pool
-  });
+  );
 }
 
-// Function to view employees by manager
+// Function to view roles
+function viewRoles() {
+  pool.query(
+    'SELECT role.id, role.title, role.salary, department.name AS department_name ' +
+      'FROM role ' +
+      'JOIN department ON role.department_id = department.id',
+    (err, roles) => {
+      if (err) {
+        console.error('Error fetching roles: ' + err.stack);
+        return;
+      }
+      console.table(roles);
+      start();
+    }
+  );
+}
+
+  //function to view employees by manager
+  
 function viewEmployeesByManager() {
   const managerQuery = 'SELECT id, CONCAT(first_name, " ", last_name) AS name FROM employee';
   pool.query(managerQuery, (error, managers) => {
@@ -146,6 +168,8 @@ function viewEmployeesByManager() {
       pool.end(); // Close the connection pool
       return;
     }
+
+    console.log('Managers:', managers);
 
     inquirer
       .prompt([
@@ -161,8 +185,12 @@ function viewEmployeesByManager() {
       ])
       .then(answer => {
         const managerId = answer.managerId;
+        console.log('Selected Manager ID:', managerId);
+
         const selectQuery =
           'SELECT employee.id, employee.first_name, employee.last_name, role.title AS job_title, department.name AS department, role.salary, CONCAT(manager.first_name, " ", manager.last_name) AS manager FROM employee JOIN role ON employee.role_id = role.id JOIN department ON role.department_id = department.id LEFT JOIN employee AS manager ON employee.manager_id = manager.id WHERE employee.manager_id = ?';
+        console.log('Select Query:', selectQuery); // Add this line to log the select query
+
         pool.query(selectQuery, [managerId], (error, results) => {
           if (error) {
             console.error('Error fetching employees by manager:', error);
@@ -178,6 +206,7 @@ function viewEmployeesByManager() {
       });
   });
 }
+
 
 // Function to view employees by department
 function viewEmployeesByDepartment() {
@@ -479,14 +508,49 @@ function deleteDepartment() {
       ])
       .then(answer => {
         const departmentId = answer.departmentId;
-        const deleteQuery = 'DELETE FROM department WHERE id = ?';
-        pool.query(deleteQuery, [departmentId], (error, results) => {
+
+        // Check if there are any roles referencing this department
+        const roleQuery = 'SELECT id FROM role WHERE department_id = ?';
+        pool.query(roleQuery, [departmentId], (error, roles) => {
           if (error) {
-            console.error('Error deleting department:', error);
-          } else {
-            console.log('Department deleted successfully!');
+            console.error('Error fetching roles:', error);
+            pool.end(); // Close the connection pool
+            return;
           }
-          pool.end(); // Close the connection pool
+
+          if (roles.length > 0) {
+            // Delete the roles referencing this department
+            const deleteRolesQuery = 'DELETE FROM role WHERE department_id = ?';
+            pool.query(deleteRolesQuery, [departmentId], (error, results) => {
+              if (error) {
+                console.error('Error deleting roles:', error);
+                pool.end(); // Close the connection pool
+                return;
+              }
+
+              // Roles deleted successfully, now delete the department
+              const deleteDepartmentQuery = 'DELETE FROM department WHERE id = ?';
+              pool.query(deleteDepartmentQuery, [departmentId], (error, results) => {
+                if (error) {
+                  console.error('Error deleting department:', error);
+                } else {
+                  console.log('Department deleted successfully!');
+                }
+                pool.end(); // Close the connection pool
+              });
+            });
+          } else {
+            // No roles referencing this department, so delete the department directly
+            const deleteDepartmentQuery = 'DELETE FROM department WHERE id = ?';
+            pool.query(deleteDepartmentQuery, [departmentId], (error, results) => {
+              if (error) {
+                console.error('Error deleting department:', error);
+              } else {
+                console.log('Department deleted successfully!');
+              }
+              pool.end(); // Close the connection pool
+            });
+          }
         });
       })
       .catch(error => {
@@ -495,6 +559,7 @@ function deleteDepartment() {
       });
   });
 }
+
 
 // Function to delete a role
 function deleteRole() {
@@ -520,14 +585,49 @@ function deleteRole() {
       ])
       .then(answer => {
         const roleId = answer.roleId;
-        const deleteQuery = 'DELETE FROM role WHERE id = ?';
-        pool.query(deleteQuery, [roleId], (error, results) => {
+
+        // Check if there are any employees referencing this role
+        const employeeQuery = 'SELECT id FROM employee WHERE role_id = ?';
+        pool.query(employeeQuery, [roleId], (error, employees) => {
           if (error) {
-            console.error('Error deleting role:', error);
-          } else {
-            console.log('Role deleted successfully!');
+            console.error('Error fetching employees:', error);
+            pool.end(); // Close the connection pool
+            return;
           }
-          pool.end(); // Close the connection pool
+
+          if (employees.length > 0) {
+            // Delete the employees referencing this role
+            const deleteEmployeesQuery = 'DELETE FROM employee WHERE role_id = ?';
+            pool.query(deleteEmployeesQuery, [roleId], (error, results) => {
+              if (error) {
+                console.error('Error deleting employees:', error);
+                pool.end(); // Close the connection pool
+                return;
+              }
+
+              // Employees deleted successfully, now delete the role
+              const deleteRoleQuery = 'DELETE FROM role WHERE id = ?';
+              pool.query(deleteRoleQuery, [roleId], (error, results) => {
+                if (error) {
+                  console.error('Error deleting role:', error);
+                } else {
+                  console.log('Role deleted successfully!');
+                }
+                pool.end(); // Close the connection pool
+              });
+            });
+          } else {
+            // No employees referencing this role, so delete the role directly
+            const deleteRoleQuery = 'DELETE FROM role WHERE id = ?';
+            pool.query(deleteRoleQuery, [roleId], (error, results) => {
+              if (error) {
+                console.error('Error deleting role:', error);
+              } else {
+                console.log('Role deleted successfully!');
+              }
+              pool.end(); // Close the connection pool
+            });
+          }
         });
       })
       .catch(error => {
@@ -536,6 +636,8 @@ function deleteRole() {
       });
   });
 }
+
+
 
 // Function to delete an employee
 function deleteEmployee() {
@@ -633,6 +735,7 @@ function mainMenu() {
           'View all roles',
           'View all employees',
           'View employees by manager',
+          'View employees by manager name',
           'View employees by department',
           'Add a department',
           'Add a role',
@@ -660,6 +763,9 @@ function mainMenu() {
           break;
         case 'View employees by manager':
           viewEmployeesByManager();
+          break;
+        case 'View employees by manager name':
+          viewEmployeesByManagerName();
           break;
         case 'View employees by department':
           viewEmployeesByDepartment();
@@ -705,3 +811,8 @@ function mainMenu() {
 
 // Call the main menu function
 mainMenu();
+
+// Handle termination signal to gracefully close the database connection
+process.on('exit', () => {
+  pool.end(); // Close the connection pool
+});
