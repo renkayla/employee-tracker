@@ -32,7 +32,7 @@ To run the application, use the following command: `node index.js`. You will be 
 
 ## Demo
 
-![Demo](https://drive.google.com/file/d/1NsZ41gN2uDD2KQ0zkToLjaqdiHLiOsCO/view)
+[Demo](https://drive.google.com/file/d/1NsZ41gN2uDD2KQ0zkToLjaqdiHLiOsCO/view)
 
 ## Features
 The Employee Tracker application offers the following features:
